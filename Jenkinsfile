@@ -3,18 +3,20 @@ pipeline {
     agent any
 
     environment {
-        SONARQUBE_TOKEN = credentials('sonarqube')
-        DOCKERHUB = credentials('docker')
-        NEXUS = credentials('nexus')
+        SONARQUBE_TOKEN = credentials('sonarqube')          // SONAR TOKEN
+        DOCKERHUB_CRED = credentials('docker')              // DOCKERHUB USER & PASS
+        NEXUS_CRED = credentials('nexus')                   // NEXUS USER & PASS
 
-        COMMIT_HASH = "${GIT_COMMIT.substring(0,7)}"
-        IMAGE_NAME = "yourdockerhubusername/safe-ride-app:${COMMIT_HASH}"
+        SONAR_HOST_URL = "http://18.117.125.177:9000"       // YOUR SONAR URL
+
+        COMMIT_HASH = "${env.GIT_COMMIT[0..6]}"             // SAFE WAY
+        IMAGE_NAME = "rishitha2707/safe-ride-app:${COMMIT_HASH}"
 
         NEXUS_URL = "http://52.8.253.11:8081/repository/npm/"
     }
 
     tools {
-        nodejs 'Node16'
+        nodejs 'Node16'     // Ensure Jenkins tool name is EXACT
     }
 
     stages {
@@ -22,7 +24,9 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
-                echo "Commit: ${GIT_COMMIT}"
+                script {
+                    echo "Commit: ${env.GIT_COMMIT}"
+                }
             }
         }
 
@@ -42,12 +46,12 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
                     sh """
-                    sonar-scanner \
-                      -Dsonar.projectKey=my-node-app \
-                      -Dsonar.sources=. \
-                      -Dsonar.exclusions=node_modules/**,build/** \
-                      -Dsonar.host.url=${SONAR_HOST_URL} \
-                      -Dsonar.login=${SONARQUBE_TOKEN}
+                        sonar-scanner \
+                          -Dsonar.projectKey=my-node-app \
+                          -Dsonar.sources=. \
+                          -Dsonar.exclusions=node_modules/**,build/** \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.token=${SONARQUBE_TOKEN}
                     """
                 }
             }
@@ -62,8 +66,8 @@ pipeline {
         stage('Zip Artifact') {
             steps {
                 sh """
-                rm -f build.zip
-                zip -r build.zip build/
+                    rm -f build.zip
+                    zip -r build.zip build/
                 """
             }
         }
@@ -71,9 +75,9 @@ pipeline {
         stage('Upload to Nexus') {
             steps {
                 sh """
-                curl -v -u ${NEXUS_USR}:${NEXUS_PSW} \
-                --upload-file build.zip \
-                ${NEXUS_URL}safe-ride-app-${COMMIT_HASH}.zip
+                    curl -v -u ${NEXUS_CRED_USR}:${NEXUS_CRED_PSW} \
+                    --upload-file build.zip \
+                    ${NEXUS_URL}safe-ride-app-${COMMIT_HASH}.zip
                 """
             }
         }
@@ -81,7 +85,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh """
-                docker build -t ${IMAGE_NAME} .
+                    docker build -t ${IMAGE_NAME} .
                 """
             }
         }
@@ -89,8 +93,8 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 sh """
-                echo "${DOCKERHUB_PSW}" | docker login -u "${DOCKERHUB_USR}" --password-stdin
-                docker push ${IMAGE_NAME}
+                    echo "${DOCKERHUB_CRED_PSW}" | docker login -u "${DOCKERHUB_CRED_USR}" --password-stdin
+                    docker push ${IMAGE_NAME}
                 """
             }
         }
