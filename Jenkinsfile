@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     environment {
-        SONARQUBE_TOKEN = credentials('sonar')
+        SONARQUBE_TOKEN = credentials('sonarqube')
         DOCKERHUB = credentials('docker')
         NEXUS = credentials('nexus')
 
