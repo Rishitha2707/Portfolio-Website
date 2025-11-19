@@ -3,20 +3,19 @@ pipeline {
     agent any
 
     environment {
-        SONARQUBE_TOKEN = credentials('sonar')     // Token ID
+        SONARQUBE_TOKEN = credentials('sonar')
         DOCKERHUB = credentials('docker')
         NEXUS = credentials('nexus')
 
         COMMIT_HASH = "${GIT_COMMIT.substring(0,7)}"
         IMAGE_NAME = "yourdockerhubusername/safe-ride-app:${COMMIT_HASH}"
 
-        SONAR_HOST_URL = "http://52.8.253.11:9000"  // FIXED
+        SONAR_HOST_URL = "http://52.8.253.11:9000"
         NEXUS_URL = "http://52.8.253.11:8081/repository/npm/"
     }
 
     tools {
         nodejs 'Node16'
-        SonarQubeScanner 'Sonar'     // FIXED → Your scanner name
     }
 
     stages {
@@ -42,7 +41,7 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('Sonar') {         // FIXED → Your SonarQube server name
+                withSonarQubeEnv('Sonar') {      // Your SonarQube server name
                     sh """
                     sonar-scanner \
                       -Dsonar.projectKey=my-node-app \
