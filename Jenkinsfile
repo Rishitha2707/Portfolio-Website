@@ -16,6 +16,7 @@ pipeline {
 
     tools {
         nodejs 'Node16'
+        // sonar scanner is installed via Jenkins tools → name = Sonar
     }
 
     stages {
@@ -41,14 +42,14 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('Sonar') {      // Your SonarQube server name
+                withSonarQubeEnv('Sonar') {       // Must match Sonar server name in Jenkins
                     sh """
-                    sonar-scanner \
-                      -Dsonar.projectKey=my-node-app \
-                      -Dsonar.sources=. \
-                      -Dsonar.exclusions=node_modules/**,build/** \
-                      -Dsonar.host.url=${SONAR_HOST_URL} \
-                      -Dsonar.login=${SONARQUBE_TOKEN}
+                        ${tool 'Sonar'}/bin/sonar-scanner \
+                          -Dsonar.projectKey=my-node-app \
+                          -Dsonar.sources=. \
+                          -Dsonar.exclusions=node_modules/**,build/** \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.login=${SONARQUBE_TOKEN}
                     """
                 }
             }
@@ -63,8 +64,8 @@ pipeline {
         stage('Zip Artifact') {
             steps {
                 sh """
-                rm -f build.zip
-                zip -r build.zip build/
+                    rm -f build.zip
+                    zip -r build.zip build/
                 """
             }
         }
@@ -72,9 +73,9 @@ pipeline {
         stage('Upload to Nexus') {
             steps {
                 sh """
-                curl -v -u ${NEXUS_USR}:${NEXUS_PSW} \
-                --upload-file build.zip \
-                ${NEXUS_URL}safe-ride-app-${COMMIT_HASH}.zip
+                    curl -v -u ${NEXUS_USR}:${NEXUS_PSW} \
+                    --upload-file build.zip \
+                    ${NEXUS_URL}safe-ride-app-${COMMIT_HASH}.zip
                 """
             }
         }
@@ -82,7 +83,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh """
-                docker build -t ${IMAGE_NAME} .
+                    docker build -t ${IMAGE_NAME} .
                 """
             }
         }
@@ -90,8 +91,8 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 sh """
-                echo "${DOCKERHUB_PSW}" | docker login -u "${DOCKERHUB_USR}" --password-stdin
-                docker push ${IMAGE_NAME}
+                    echo "${DOCKERHUB_PSW}" | docker login -u "${DOCKERHUB_USR}" --password-stdin
+                    docker push ${IMAGE_NAME}
                 """
             }
         }
