@@ -3,12 +3,8 @@ pipeline {
     agent any
 
     environment {
-        SONARQUBE_TOKEN = credentials('sonar')
-        DOCKERHUB = credentials('docker')
-        NEXUS = credentials('nexus')
-
         COMMIT_HASH = "${GIT_COMMIT.substring(0,7)}"
-        IMAGE_NAME = "yourdockerhubusername/safe-ride-app:${COMMIT_HASH}"
+        IMAGE_NAME = "rishi01dadireddy/safe-ride-app:${COMMIT_HASH}"   // CHANGE ONLY USERNAME
 
         SONAR_HOST_URL = "http://52.8.253.11:9000"
         NEXUS_URL = "http://52.8.253.11:8081/repository/npm/"
@@ -16,7 +12,6 @@ pipeline {
 
     tools {
         nodejs 'Node16'
-        // sonar scanner is installed via Jenkins tools → name = Sonar
     }
 
     stages {
@@ -42,15 +37,17 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('Sonar') {       // Must match Sonar server name in Jenkins
-                    sh """
-                        ${tool 'Sonar'}/bin/sonar-scanner \
-                          -Dsonar.projectKey=my-node-app \
-                          -Dsonar.sources=. \
-                          -Dsonar.exclusions=node_modules/**,build/** \
-                          -Dsonar.host.url=${SONAR_HOST_URL} \
-                          -Dsonar.login=${SONARQUBE_TOKEN}
-                    """
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    withSonarQubeEnv('Sonar') {
+                        sh """
+                            ${tool 'Sonar'}/bin/sonar-scanner \
+                              -Dsonar.projectKey=my-node-app \
+                              -Dsonar.sources=. \
+                              -Dsonar.exclusions=node_modules/**,build/** \
+                              -Dsonar.host.url=${SONAR_HOST_URL} \
+                              -Dsonar.login=${SONAR_TOKEN}
+                        """
+                    }
                 }
             }
         }
@@ -64,6 +61,7 @@ pipeline {
         stage('Zip Artifact') {
             steps {
                 sh """
+                    apt-get update -y && apt-get install -y zip
                     rm -f build.zip
                     zip -r build.zip build/
                 """
@@ -72,11 +70,13 @@ pipeline {
 
         stage('Upload to Nexus') {
             steps {
-                sh """
-                    curl -v -u ${NEXUS_USR}:${NEXUS_PSW} \
-                    --upload-file build.zip \
-                    ${NEXUS_URL}safe-ride-app-${COMMIT_HASH}.zip
-                """
+                withCredentials([usernamePassword(credentialsId: 'nexus', usernameVariable: 'NUSER', passwordVariable: 'NPASS')]) {
+                    sh """
+                        curl -u "$NUSER:$NPASS" \
+                        --upload-file build.zip \
+                        "${NEXUS_URL}safe-ride-app-${COMMIT_HASH}.zip"
+                    """
+                }
             }
         }
 
@@ -90,20 +90,18 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                sh """
-                    echo "${DOCKERHUB_PSW}" | docker login -u "${DOCKERHUB_USR}" --password-stdin
-                    docker push ${IMAGE_NAME}
-                """
+                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DUSER', passwordVariable: 'DPASS')]) {
+                    sh """
+                        echo "$DPASS" | docker login -u "$DUSER" --password-stdin
+                        docker push ${IMAGE_NAME}
+                    """
+                }
             }
         }
     }
 
     post {
-        success {
-            echo "Build Successful: ${IMAGE_NAME}"
-        }
-        failure {
-            echo "Build Failed!"
-        }
+        success { echo "Build Successful: ${IMAGE_NAME}" }
+        failure { echo "Build Failed!" }
     }
 }
