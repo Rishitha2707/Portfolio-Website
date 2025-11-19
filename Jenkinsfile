@@ -4,7 +4,7 @@ pipeline {
 
     environment {
         COMMIT_HASH = "${GIT_COMMIT.substring(0,7)}"
-        IMAGE_NAME = "rishi01dadireddy/safe-ride-app:${COMMIT_HASH}"   // CHANGE ONLY USERNAME
+        IMAGE_NAME = "rishi01dadireddy/safe-ride-app:${COMMIT_HASH}"
 
         SONAR_HOST_URL = "http://52.8.253.11:9000"
         NEXUS_URL = "http://52.8.253.11:8081/repository/npm/"
@@ -90,6 +90,7 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
+                // Using your updated credential ID: docker
                 withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DUSER', passwordVariable: 'DPASS')]) {
                     sh """
                         echo "$DPASS" | docker login -u "$DUSER" --password-stdin
